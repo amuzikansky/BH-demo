@@ -1,6 +1,6 @@
-# BH-demo
+# BH FDR control-demo
 
-This repo was created to demonstarte the BH procedure.
+This repo was created to demonstarte the BH procedure for controling the FDR.
 
 Progrmas include simple correlation test with p.ajdust function and power simulation.
 
