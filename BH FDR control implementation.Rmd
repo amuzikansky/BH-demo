@@ -1,0 +1,93 @@
+---
+title: 
+author: 
+date: 
+output: pdf_document
+---
+
+## Controlling the False Discovery Rate (FDR) by Benjamini & Hochberg (1995)
+### Metabolomics file example
+
+
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(BSDA)
+library(knitr)
+```
+
+
+
+```{r include=FALSE}
+data <- read.csv("hapo_metabolomics_2020.csv", header=TRUE)
+```
+
+
+```{r include=FALSE}
+zpv <- function (x){
+  t.test(x,mu=90)$p.value
+}
+
+p <- apply(data[4:54],2,zpv)
+```
+
+```{r include=FALSE}
+famtest = function (data, a, b){
+  ps <- c()
+  names <- c()
+  for (i in a:b){
+    p <- cor.test(data$fpg,data[,i])$p.value
+    ps <- c(ps,p)
+    names <- c(names,colnames(data)[i])
+  }
+  df <- data.frame(names,ps)
+  pss <- df[order(ps),]
+  result <- data.frame("Metabolite"=pss$names,
+                       "Pval"=round(pss$ps,6),
+                       'BH'=round(p.adjust(pss$ps,method='BH'),6),
+                       'BY'=round(p.adjust(pss$ps,method='BY'),6),
+                       'Bonferroni'=round(p.adjust(pss$ps,method='bonferroni'),6)) 
+  return(result)
+}
+
+```
+
+
+```{r include=FALSE}
+#names <- (colnames(data[19:36]))
+#pvals <- data.frame(names,ps)          
+all <- famtest(data=data, 4,54)
+mt1 <- famtest(data=data, 4,18)
+mt2 <- famtest(data=data, 19,36)
+mt3 <- famtest(data=data, 37,54)
+```
+
+
+```{r echo=FALSE}
+kable(all,col.names = c("Metabolite","Pearson p-value",
+                        "BH adjusted","BY adjusted","Bonferroni adjusted"),
+      caption = "P-values for correlation of FPG with all metabolites",
+      row.names = TRUE,
+      align = c('c','c','c','c','c'))
+kable(mt1,
+      col.names = c("Metabolite","Pearson p-value",
+                    "BH adjusted","BY adjusted","Bonferroni adjusted"),
+      caption = "P-values for correlation of FPG with mt1 metabolites",
+      row.names = TRUE,
+      align = c('c','c','c','c','c'))
+kable(mt2,
+      col.names = c("Metabolite","Pearson p-value",
+                    "BH adjusted","BY adjusted","Bonferroni adjusted"),
+      caption = "P-values for correlation of FPG with mt2 metabolites",
+      row.names = TRUE,
+      align = c('c','c','c','c','c'))
+kable(mt3,
+      col.names = c("Metabolite","Pearson p-value",
+                    "BH adjusted","BY adjusted","Bonferroni adjusted"),
+      caption = "P-values for correlation of FPG with mt3 metabolites",
+      row.names = TRUE,
+      align = c('c','c','c','c','c'))
+
+```
+
+
