@@ -66,22 +66,26 @@ mt3 <- famtest(data=data, 37,54)
 kable(all,col.names = c("Metabolite","Pearson p-value",
                         "BH adjusted","Bonferroni adjusted"),
       caption = "P-values for correlation of FPG with all metabolites",
-      row.names = TRUE)
+      row.names = TRUE,
+      align = c('c','c','c','c'))
 kable(mt1,
       col.names = c("Metabolite","Pearson p-value",
                     "BH adjusted","Bonferroni adjusted"),
       caption = "P-values for correlation of FPG with mt1 metabolites",
-      row.names = TRUE)
+      row.names = TRUE,
+      align = c('c','c','c','c'))
 kable(mt2,
       col.names = c("Metabolite","Pearson p-value",
                     "BH adjusted","Bonferroni adjusted"),
       caption = "P-values for correlation of FPG with mt2 metabolites",
-      row.names = TRUE)
+      row.names = TRUE,
+      align = c('c','c','c','c'))
 kable(mt3,
       col.names = c("Metabolite","Pearson p-value",
                     "BH adjusted","Bonferroni adjusted"),
       caption = "P-values for correlation of FPG with mt3 metabolites",
-      row.names = TRUE)
+      row.names = TRUE,
+      align = c('c','c','c','c'))
 
 ```
 
