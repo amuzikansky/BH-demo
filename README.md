@@ -8,6 +8,8 @@ Progrmas included:
 
 2. Simulation and metabolite network data.r - FDR power simulation and implementation on the hapo_metabolite data
 
+3. Demo2 - Simulation to demonstrate FDR control by the BH procedure.
+
 
 Reference:
 
