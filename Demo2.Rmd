@@ -1,0 +1,209 @@
+---
+title: "BH FDR control simulation"
+output: pdf_document
+date: '2022-04-15'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(stringr)
+library(ggplot2)
+library(knitr)
+```
+
+## Data simulation 
+### (example adapted from a youtube video by Josh Starmer)
+
+We construct a simple data that is comprised of two groups of subjects, each of size 25. Subjects have data from $m=10,000$ variables, for example gene expression levels, and we want to compare expression levels of all genes between the groups.
+
+To demonstrate how BH controls the FDR, we simulate the gene expression data as follows: 
+
+For $j=1,...10,000$ we generate $\mu \sim N(0,1)$
+
+For $j\leq 9000$ genes, we sample $\mu_{1j}=\mu$
+
+For $j>9000$ genes we sample $\mu_{2j}=\mu+1$.
+
+Sample data is simulated such that:
+
+$x_{ij} =\begin{cases} N(\mu_{1j}) & i \in (1,..25) \\ N (\mu_{2j}) &   i \in (26,..50) \end{cases}$
+
+
+This set up will generate $m_0=9000$ true null hypothesis and $m-m_0=1000$ false null hypothesis.
+
+The p-values are then computed using two-sample t-tests.
+
+
+```{r include=FALSE}
+sim1 <- 9000
+sim2 <- 1000
+tot <- sim1+sim2
+
+n1 <- 25
+n2 <- 25
+
+n <- n1 + n2
+
+num_sim <- 150
+
+qstar <- 0.05
+
+set.seed(12345)
+
+```
+
+
+```{r include=FALSE}
+
+pv <- function (x){
+  t.test(x[1:n1], x[(n1+1):n])$p.value
+}
+
+fdrs <- c()
+for(i in 1:num_sim){
+  mu1 <- rnorm(tot,0,1)
+  mu2 <- mu1+c(rep(0,sim1),rep(1,sim2))
+  m <- matrix(0,n,tot)
+  for (i in 1:n){
+    for (j in 1:tot){
+      if (i<=n1){
+        m[i,j] <- rnorm(1,mu1[j],1)
+      } else {
+        m[i,j] <- rnorm(1,mu2[j],1)
+      }
+    }
+  }
+  
+  disc <- p.adjust(apply(m,2,pv),"BH")
+  fdrs <- c(fdrs, sum(disc[1:sim1]<=qstar)/sum(disc<=qstar))
+}
+
+
+
+subj <- 1:n
+
+grp <- c(rep(1, n1), rep(2, n2))
+
+
+df <- as.data.frame(cbind(subj, grp,  m))
+colnames(df) <- c("Subject", "Group", paste("Gene", 1:tot, sep=""))
+
+pval <- apply(df[3:(tot+2)],2,pv)
+pvaldf <- data.frame(pval=pval,null=c(rep(1,sim1),rep(2,sim2)))
+```
+
+
+To demonstrate the distributions of the test results for true nulls and false nulls we can draw histograms of the p-values 
+
+```{r echo=FALSE}
+par(mfrow=c(2,2))
+hist(pvaldf$pval[1:sim1], main = "H0 is true", xlab = "p-value")
+hist(pvaldf$pval[sim1+1:tot], main = "H0 is false", xlab = "p-value")
+#par(mfrow=c(1,2))
+plot(rank(pvaldf$pval[1:sim1]),pvaldf$pval[1:sim1],ylab = "p-value",xlab =" ")
+plot(rank(pvaldf$pval[(sim1+1):tot]),pvaldf$pval[(sim1+1):tot],ylab = "p-value",xlab =" ")
+
+```
+
+The histogram on the right shows only the p-values for which $H_0$ is true.
+The p-values are uniformly distributed between 0 and 1.
+
+The histogram on the left shows only the p-values for which $H_0$ is false. As expected most of the 1000 cases are significant (which is how we designed them to be)
+
+```{r include=FALSE}
+freqm0 <- hist(pvaldf$pval[1:sim1])
+freqm1 <- hist(pvaldf$pval[(sim1+1):tot])
+ave_null <- round(mean(freqm0$counts[2:20]))
+freqm <- hist(pvaldf$pval)
+```
+
+```{r echo=FALSE}
+hist(pval, main = "All p-values", xlab = "p-value")
+abline(h=mean(freqm0$counts[2:20]),col="red")
+```
+
+If we look at the distribution of all p-values, we can "eyeball" the total number of true positive tests (tests that should be rejected) as the frequency count on the highest bar minus the value of the red line (which is the average count of all the p-values from the second bar to the last (i.e. all p-values that are greater than 0.05)
+
+
+```{r include=FALSE}
+FP <- sum(pvaldf$pval[1:sim1]<qstar)
+TN <- sim1-FP
+TP <- sum(pvaldf$pval[(sim1+1):tot]<qstar)
+FN <- sim2-TP
+```
+
+Using the simulated data we can calculate the exact value for each of the cells in the 2x2 table from the paper and calculate the FDR.
+
+```{r echo=FALSE}
+vals <- matrix(c(TN,FN,FP,TP),
+               ncol=2)
+dimnames(vals) <- list(null=c("Null True","Null False"),
+                       sig=c("Non-significant", "Significant"))
+
+tab <- as.table(vals) 
+kable(tab,
+      caption = "")
+```
+
+
+The BH method is intended to control the FDR at a level of $\frac{\alpha}{m}k$.
+If we plot all p-values and draw the line $y=\frac{\alpha}{m}k$ we are essentially visualizing the procedure. The point where this line intersects with the p-values is where the FDR is controlled at the desired level. 
+
+
+```{r echo=FALSE}
+plot(rank(pvaldf$pval),pvaldf$pval,
+     ylab = "p-value",xlab =" ",col=pvaldf$null)
+abline(0,qstar/tot,col="blue")
+plot(rank(pvaldf$pval),pvaldf$pval, xlim=c(0,1500),ylim=c(0,0.03),
+     ylab = "p-value",xlab = " ",col=pvaldf$null)
+abline(0,qstar/tot,col="blue")
+pvals <- sort(pvaldf$pval)
+for(i in 1:tot){
+  if(pvals[i] > i*qstar/tot){
+    break
+  }  
+}
+hval <- pvals[i]
+abline(h=hval)
+abline(v=i)
+```
+
+
+```{r include=FALSE}
+
+bh <- pvaldf %>%
+      mutate(bh_fdr=p.adjust(pval,method = "BH"))
+bh_sig <- bh %>% 
+          filter(bh_fdr<qstar)
+fp <- bh_sig %>% 
+      filter(null==1)
+
+ksig <- nrow(bh_sig)
+fpi <- nrow(fp)
+
+```
+
+Here is a condensed explanation why this is true:
+
+We demonstrated that the distribution of p-values for which $H_0$ is true is $U[0,1]$. Therefore the expected number of p-values within any interval $[0,k]$ is $m_0k$. From here, with simple algebra we can demonstrate that the horizontal line is equal to $\frac{\alpha k}{m}$ and the expected number of p-values among these for which $H_0 $ is true (i.e. false discoveries) is less than or equal to $m_0h = m_0\frac{\alpha k}{m}$, therefore:
+
+FDR $\leq m_0 \frac{\frac{\alpha k}{m}}{k} =\frac{\alpha m_0}{m} \leq \alpha$
+
+For the data shown above the $k$ corresponding to the intersection point is `r ksig` and the total false positive in this case are `r fpi`. The FDR is therefore `r round(fpi/ksig,3)`
+
+
+To show that the Expected FDR value is indeed controlled at the level $\frac{m_0\alpha}{m}=0.045$, we run the simulated data above 150 times and the results for the FDR controlled p-values are presented in the histogram below:
+
+
+```{r echo=FALSE}
+hist(fdrs, main="Simulated Distribution of FDRs",xlab="FDR values")
+abline(v=qstar*sim1/tot,col='red')
+```
+
+
+The mean of this distribution is `r mean(fdrs)`.
+
+
+
+
